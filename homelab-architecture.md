@@ -59,6 +59,9 @@ Local network 192.168.1.0/24
 | VT for Direct I/O (BIOS) | Enabled (required for iGPU passthrough) |
 | Secure Boot | Enabled, "Deployed" mode |
 | SATA Operation (BIOS) | AHCI (was "RAID On": the SSD was invisible to the installer) |
+| AC Recovery (BIOS) | Power On: the server restarts by itself after a power outage (verified) |
+| Keyboard Errors (BIOS) | Disabled: no POST warning when booting without a keyboard (verified) |
+| UEFI boot order | `proxmox` (`\EFI\proxmox\shimx64.efi` on partition 2) first, then onboard NIC network boot (IPv4, IPv6); verified with `efibootmgr -v` |
 | Network | Ethernet, IPv4 only |
 | Previous OS | Windows, erased by the installation |
 
@@ -294,3 +297,6 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - **2026-11-05, 16:52**: DNS rewrite `pve1.home.arpa` → 192.168.1.10 added. Name resolution confirmed by SSH (`pve1.home.arpa (192.168.1.10)`), same host key fingerprint as under the IP address.
 - **2026-11-05, 17:21**: address ranges defined (ADR-011) and prod VM specification decided (ADR-012): VMID 120, 192.168.1.20, OVMF/q35, 4 GiB RAM, 64 GiB system disk, temporary 50 GiB media disk. One VM for all services, one container per service.
 - **2026-11-05, 17:46**: Debian 13.7.0 netinst ISO (amd64) downloaded to `local` from cdimage.debian.org via "Download from URL", SHA-256 checksum verified by Proxmox. Prod VM creation postponed to the next session.
+- **2026-11-05, 20:03**: BIOS AC Recovery set to Power On, so pve1 restarts automatically after a power outage. Keyboard Errors disabled. Preparation for headless operation (no screen or keyboard).
+- **2026-11-05, 20:11**: stale "Windows Boot Manager" UEFI entry removed (left over in the motherboard NVRAM after Windows was wiped). "Onboard NIC (IPV6)" network boot entry deleted by mistake, then back after exiting the BIOS without saving. AC Recovery and Keyboard Errors settings to be re-checked for the same reason.
+- **2026-11-05, 20:14**: AC Recovery (Power On) and Keyboard Errors (disabled) re-checked in the BIOS. `efibootmgr -v`: BootOrder 0004 (proxmox, signed shim on the EFI partition), 0001 and 0005 (onboard NIC network boot); no Windows entry left. Ready for headless operation.
