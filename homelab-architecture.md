@@ -176,7 +176,7 @@ Constraint for the \*arr stack: downloads and the library must be on the **same 
 | Parameter | Value | Status |
 |---|---|---|
 | VMID / name | 120 / prod | 🟡 |
-| OS | Debian (netinst, amd64) | 🟡 |
+| OS | Debian 13.7.0 (netinst, amd64), ISO on `local`, SHA-256 verified | ✅ |
 | Firmware / machine type | OVMF (UEFI) / q35, with an EFI disk | 🟡 |
 | RAM | 4 GiB, fully reserved (required by PCI passthrough) | 🟡 |
 | System disk | 64 GiB on `local-lvm`, Discard enabled | 🟡 |
@@ -243,7 +243,8 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - [x] Add the ISP router (192.168.1.254) as the host's secondary DNS
 - [x] Documentation versioned in a Git repository
 - [ ] Test iGPU passthrough
-- [ ] Create the prod VM, install Docker
+- [x] Download the Debian 13.7.0 netinst ISO to `local`, with SHA-256 verification
+- [ ] Create the prod VM (ADR-012), install Debian and Docker
 - [ ] Deploy Jellyfin, Seerr and \*arr with a versioned `docker-compose`
 - [ ] Create the test VM
 - [ ] Set up backups and test a restore
@@ -267,6 +268,8 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - Backup strategy: what, where, how often. A backup on the same SSD as what it protects does not survive a disk failure.
 - Plan B if iGPU passthrough fails, with a time limit set in advance.
 - External access method for family and friends (VPN or public exposure behind a reverse proxy).
+- Prod VM CPU: number of cores (vCPUs are shared, not reserved) and CPU type (`x86-64-v2-AES` or `host`).
+- Prod VM "Start at boot": should it start automatically when pve1 reboots?
 
 ---
 
@@ -290,3 +293,4 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - **2026-11-05, 16:48**: static DHCP lease dropped (redundant with the host's static configuration, the address being outside the DHCP range). Name resolution to be provided by a DNS rewrite on the network DNS server.
 - **2026-11-05, 16:52**: DNS rewrite `pve1.home.arpa` → 192.168.1.10 added. Name resolution confirmed by SSH (`pve1.home.arpa (192.168.1.10)`), same host key fingerprint as under the IP address.
 - **2026-11-05, 17:21**: address ranges defined (ADR-011) and prod VM specification decided (ADR-012): VMID 120, 192.168.1.20, OVMF/q35, 4 GiB RAM, 64 GiB system disk, temporary 50 GiB media disk. One VM for all services, one container per service.
+- **2026-11-05, 17:46**: Debian 13.7.0 netinst ISO (amd64) downloaded to `local` from cdimage.debian.org via "Download from URL", SHA-256 checksum verified by Proxmox. Prod VM creation postponed to the next session.
