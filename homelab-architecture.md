@@ -92,7 +92,8 @@ Local network 192.168.1.0/24
 | Management interface | nic0, Intel NIC (e1000e driver) | ✅ |
 | Interface naming | Pinning enabled (installer default), name bound to the MAC address | ✅ |
 | NIC MAC address | e4:54:e8:6b:0c:01 | ✅ |
-| Static DHCP lease | *to be created* | ⬜ |
+| Static DHCP lease | Not used: address configured on the host and outside the DHCP range (see ADR-008) | ✅ |
+| Local DNS record | `pve1.home.arpa` → 192.168.1.10, DNS rewrite on the network DNS server | ✅ |
 
 ### Addressing plan
 
@@ -102,7 +103,7 @@ Local network 192.168.1.0/24
 | *TBD* | *TBD* | Prod VM |
 | *TBD* | *TBD* | Test VM |
 
-Rule: infrastructure addresses sit outside the dynamic range and are reserved on the DHCP server.
+Rule: infrastructure addresses are configured statically on each machine, outside the dynamic range, and published by name through local DNS records.
 
 ### Dependency on the network DNS/DHCP server
 
@@ -204,7 +205,7 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 ## 10. Post-installation
 
 - [x] Access the web UI (`https://192.168.1.10:8006`, root account, Linux PAM realm)
-- [ ] Create the static DHCP lease (MAC e4:54:e8:6b:0c:01 → 192.168.1.10)
+- [x] Add a DNS rewrite on the network DNS server: `pve1.home.arpa` → 192.168.1.10, and test it
 - [ ] Configure an SMTP relay so Proxmox e-mail alerts are actually delivered
 - [x] SSH access with an ed25519 key (key dedicated to the PC, passphrase-protected)
 - [x] Disable SSH password authentication (`/etc/ssh/sshd_config.d/10-cle-uniquement.conf`)
@@ -260,3 +261,5 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - **2026-11-05, 16:05**: SSH password authentication disabled via `/etc/ssh/sshd_config.d/10-cle-uniquement.conf` (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`). Effective configuration checked with `sshd -T`, applied with `systemctl reload ssh`. Tested: login without key refused (`Permission denied (publickey)`), key login accepted.
 - **2026-11-05, 16:32**: documentation pushed to a public GitHub repository.
 - **2026-11-05, 16:35**: documentation translated to English.
+- **2026-11-05, 16:48**: static DHCP lease dropped (redundant with the host's static configuration, the address being outside the DHCP range). Name resolution to be provided by a DNS rewrite on the network DNS server.
+- **2026-11-05, 16:52**: DNS rewrite `pve1.home.arpa` → 192.168.1.10 added. Name resolution confirmed by SSH (`pve1.home.arpa (192.168.1.10)`), same host key fingerprint as under the IP address.

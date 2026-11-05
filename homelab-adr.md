@@ -125,11 +125,14 @@ An ADR (Architecture Decision Record) explains **why** a choice was made. Record
 
 ### ADR-008: Host network addressing
 
-- **Status**: accepted.
+- **Status**: accepted (amended on 2026-11-05: static DHCP lease dropped, local DNS record added).
 - **Context**: the network DHCP server hands out 192.168.1.100 to 192.168.1.200. The Proxmox installer expects a static configuration. The network DNS/DHCP server is a single point of failure.
-- **Decision**: address 192.168.1.10/24 configured on the host, outside the dynamic range, plus a static lease on the DHCP server; gateway 192.168.1.254; primary DNS the network DNS server, secondary DNS the ISP router (192.168.1.254).
-- **Rationale**: an address configured on the host keeps it reachable if DHCP fails; the static lease prevents another device from taking the address; a secondary DNS independent from the network DNS server keeps name resolution working during an outage.
-- **Consequences**: when the ISP router answers as secondary, the filtering DNS is bypassed for that query. Acceptable for a server.
+- **Decision**: address 192.168.1.10/24 configured statically on the host, outside the dynamic range; gateway 192.168.1.254; primary DNS the network DNS server, secondary DNS the ISP router (192.168.1.254). The name `pve1.home.arpa` is published through a DNS rewrite on the network DNS server.
+- **Rationale**: an address configured on the host keeps it reachable even if DHCP fails; choosing it outside the dynamic range means the DHCP server can never hand it to another device; a secondary DNS independent from the network DNS server keeps name resolution working during an outage. A statically configured host does not register itself in DNS, hence the explicit DNS record.
+- **Alternatives considered**:
+  - a static DHCP lease in addition to the host configuration: redundant (no conflict risk since the address is outside the range), and duplicating the address in two places risks them drifting apart;
+  - a DHCP reservation only, without static configuration: the host would depend on the DHCP server at boot, which the Proxmox installer does not expect.
+- **Consequences**: when the ISP router answers as secondary, the filtering DNS is bypassed for that query, and `pve1.home.arpa` does not resolve through it. Acceptable for a server. Changing the host address means updating the host configuration and the DNS record.
 - **Reversibility**: easy.
 
 ---
