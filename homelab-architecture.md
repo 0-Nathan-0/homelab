@@ -30,7 +30,7 @@ Local network 192.168.1.0/24
 │  IP 192.168.1.10                                 │
 │                                                  │
 │   ┌────────────────────────┐   ┌──────────────┐  │
-│   │ Prod VM (Debian)       │   │ Test VM      │  │
+│   │ Prod VM .20 (Debian)   │   │ Test VM .21  │  │
 │   │  Docker                │   │ (later)      │  │
 │   │   Jellyfin, Seerr, *arr│   │              │  │
 │   │  iGPU passthrough      │   │              │  │
@@ -97,13 +97,26 @@ Local network 192.168.1.0/24
 
 ### Addressing plan
 
-| Address | Name | Role |
-|---|---|---|
-| 192.168.1.10 | pve1 | Proxmox host |
-| *TBD* | *TBD* | Prod VM |
-| *TBD* | *TBD* | Test VM |
+Address ranges (see ADR-011):
 
-Rule: infrastructure addresses are configured statically on each machine, outside the dynamic range, and published by name through local DNS records.
+| Range | Use |
+|---|---|
+| .1 to .9 | Reserved |
+| .10 to .19 | Physical hosts |
+| .20 to .29 | Virtual machines (VMID 1xx ↔ address .xx) |
+| .30 to .39 | Network services |
+| .100 to .200 | DHCP dynamic range (clients) |
+| .254 | ISP router (gateway) |
+
+| Address | Name | VMID | Role |
+|---|---|---|---|
+| 192.168.1.10 | pve1.home.arpa | — | Proxmox host |
+| 192.168.1.20 | prod.home.arpa | 120 | Prod VM (media stack) |
+| 192.168.1.21 | test.home.arpa | 121 | Test VM (later) |
+| 192.168.1.30 | — | — | Network DNS/DHCP server |
+| 192.168.1.254 | — | — | ISP router |
+
+Rule: servers (hosts and VMs) have a static address configured on the machine, outside the dynamic range, published by name through local DNS records. Clients use DHCP. Services will be published under their own names (for example `jellyfin.home.arpa`), so that users never depend on a machine name.
 
 ### Dependency on the network DNS/DHCP server
 
@@ -156,7 +169,22 @@ Constraint for the \*arr stack: downloads and the library must be on the **same 
 
 ---
 
-## 7. Services (target state)
+## 7. Virtual machines
+
+### Prod VM (see ADR-012)
+
+| Parameter | Value | Status |
+|---|---|---|
+| VMID / name | 120 / prod | 🟡 |
+| OS | Debian (netinst, amd64) | 🟡 |
+| Firmware / machine type | OVMF (UEFI) / q35, with an EFI disk | 🟡 |
+| RAM | 4 GiB, fully reserved (required by PCI passthrough) | 🟡 |
+| System disk | 64 GiB on `local-lvm`, Discard enabled | 🟡 |
+| Media disk (temporary) | 50 GiB on `local-lvm`, Discard enabled, mounted on `/mnt/media`; replaced by the HDD later | 🟡 |
+| Network | `vmbr0`, static 192.168.1.20/24, gateway 192.168.1.254 | 🟡 |
+| iGPU | Passthrough of 00:02.0 (IOMMU group 0) | ⬜ |
+
+### Services (target state)
 
 | Service | Role | Where | Status |
 |---|---|---|---|
@@ -164,7 +192,7 @@ Constraint for the \*arr stack: downloads and the library must be on the **same 
 | Seerr | Media requests | Prod VM, Docker | ⬜ |
 | \*arr stack | Library management | Prod VM, Docker | ⬜ |
 
-Deployed with a `docker-compose` file versioned in Git. Local access only for now; external access for family and friends is planned later (separate decision).
+One Docker container per service, all in the prod VM, deployed with a `docker-compose` file versioned in Git. Media path `/mnt/media` in every container, whatever the underlying disk. Local access only for now; external access for family and friends is planned later (separate decision).
 
 ---
 
@@ -173,9 +201,7 @@ Deployed with a `docker-compose` file versioned in Git. Local access only for no
 | Component | Estimated RAM | Source |
 |---|---|---|
 | Proxmox host | about 1.6 GiB (measured idle, no VM) | `free -h` on 2026-11-05 |
-| Prod VM (Debian, Docker) | *to estimate* | |
-| Jellyfin | *to estimate* | |
-| \*arr stack and download client | *to estimate* | |
+| Prod VM (Debian, Docker, Jellyfin, \*arr, download client) | 4 GiB (estimate, to be checked with `free -h` in the VM) | ADR-012 |
 | Test VM | *to estimate* | |
 | iGPU (shared memory) | *to estimate* | |
 | **Total** | | |
@@ -263,3 +289,4 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - **2026-11-05, 16:35**: documentation translated to English.
 - **2026-11-05, 16:48**: static DHCP lease dropped (redundant with the host's static configuration, the address being outside the DHCP range). Name resolution to be provided by a DNS rewrite on the network DNS server.
 - **2026-11-05, 16:52**: DNS rewrite `pve1.home.arpa` → 192.168.1.10 added. Name resolution confirmed by SSH (`pve1.home.arpa (192.168.1.10)`), same host key fingerprint as under the IP address.
+- **2026-11-05, 17:21**: address ranges defined (ADR-011) and prod VM specification decided (ADR-012): VMID 120, 192.168.1.20, OVMF/q35, 4 GiB RAM, 64 GiB system disk, temporary 50 GiB media disk. One VM for all services, one container per service.

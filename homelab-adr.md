@@ -18,6 +18,8 @@ An ADR (Architecture Decision Record) explains **why** a choice was made. Record
 | ADR-008 | Host network addressing | Accepted |
 | ADR-009 | SATA controller in AHCI mode | Accepted |
 | ADR-010 | SSH access with an ed25519 key | Accepted |
+| ADR-011 | Address ranges and server addressing | Accepted |
+| ADR-012 | Prod VM specification | Accepted |
 
 ## Template
 
@@ -159,3 +161,43 @@ An ADR (Architecture Decision Record) explains **why** a choice was made. Record
   - a key without a passphrase: stealing the private key file would be enough to access the server.
 - **Consequences**: the passphrase is requested at every connection (an SSH agent can cache it for the session). Losing the PC means removing its line from `authorized_keys`, identifiable by the key comment.
 - **Reversibility**: easy.
+
+---
+
+### ADR-011: Address ranges and server addressing
+
+- **Status**: accepted.
+- **Context**: the network will host several kinds of machines (physical hosts, VMs, network services, clients). A flat sequence of addresses mixes them and breaks as soon as a new physical host or VM is added. ADR-008 set the rule for pve1; VMs need one too.
+- **Decision**:
+  - ranges by category: .10–.19 physical hosts, .20–.29 VMs, .30–.39 network services, .100–.200 DHCP dynamic range, .254 ISP router;
+  - VMID mirrors the address (VMID 120 ↔ .20);
+  - servers, VMs included, follow ADR-008: static address configured on the machine, outside the DHCP range, published through a local DNS record. Only clients use DHCP.
+- **Rationale**: the criterion is the role, not physical versus virtual. A client fetches services and can change address; a server is reached by others and must stay reachable, including when the DHCP server is down. The prod VM hosts Jellyfin, so it is a server.
+- **Alternatives considered**:
+  - DHCP reservations for VMs: centralised, and the DNS server can learn their names automatically, but each VM would depend on the DHCP server at boot;
+  - sequential addresses after the host (.11, .12…): simple, but no room for a second physical host without mixing categories.
+- **Consequences**: each new server needs a manual DNS record. The VM range holds 10 addresses, enough for this homelab.
+- **Reversibility**: easy, but changing an address means updating the machine, the DNS record and the documentation.
+
+---
+
+### ADR-012: Prod VM specification
+
+- **Status**: accepted (VM not created yet).
+- **Context**: the media stack (Jellyfin, Seerr, \*arr, download client) runs in one VM with Docker (ADR-002), with iGPU passthrough for hardware transcoding. About 6 GiB of RAM are available for VMs. The media HDD has not been purchased yet, but a few test movies (under 10 GiB each) should be playable before it arrives.
+- **Decision**:
+  - VMID 120, name `prod`, address 192.168.1.20 (ADR-011);
+  - Debian, OVMF (UEFI) firmware with an EFI disk, q35 machine type;
+  - 4 GiB of RAM;
+  - 64 GiB system disk and a temporary 50 GiB media disk, both on `local-lvm` with Discard enabled; the media disk is mounted on `/mnt/media`, the path every container will use;
+  - one Docker container per service.
+- **Alternatives considered**:
+  - SeaBIOS and the i440fx machine type: older emulated hardware, less suited to GPU passthrough than OVMF and q35 (PCIe);
+  - one VM per service: stronger isolation, but each VM runs its own kernel and OS, unaffordable with 8 GB of RAM;
+  - storing test movies on the system disk: mixes media and system (contrary to ADR-007) and would require a different media path later;
+  - a larger temporary media disk: unnecessary for movies under 10 GiB; growing a disk later is easy.
+- **Consequences**:
+  - with PCI passthrough, the VM's 4 GiB are reserved and locked in RAM as soon as it starts, used or not;
+  - all services share the VM: if it goes down, they all go down;
+  - name `prod` describes the environment, not the function; acceptable with two VMs, ambiguous if another production VM is ever added. Users will reach services through service names (`jellyfin.home.arpa`), so renaming the VM would not affect them.
+- **Reversibility**: RAM and disk growth are easy; firmware and machine type are hard to change after the OS is installed.
