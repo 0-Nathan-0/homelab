@@ -1,6 +1,6 @@
 # Homelab OptiPlex 7070 SFF: architecture
 
-*Last updated: 2026-11-05. Status: Proxmox installed, post-installation setup in progress.*
+*Last updated: 2026-11-06. Status: Proxmox host installed, secured and running headless. Next: prod VM.*
 
 Decisions and their rationale are in [homelab-adr.md](homelab-adr.md). This document describes the **target state** and the **current state**.
 
@@ -125,7 +125,7 @@ Rule: servers (hosts and VMs) have a static address configured on the machine, o
 
 - A DHCP outage does not affect the host: its address is configured on the host itself.
 - A DNS outage only partly affects the host: the ISP router takes over as secondary DNS.
-- VMs that get their address via DHCP depend on the DHCP server: plan static addresses or reservations.
+- VMs are servers too: they get static addresses configured on the machine (ADR-011), so a DHCP outage does not affect them either.
 
 ---
 
@@ -223,11 +223,11 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - [x] Secure Boot decision
 - [x] Nothing to recover from the existing Windows install
 - [x] Official Proxmox VE x86-64 ISO downloaded (version 9.2-1)
-- [ ] ISO SHA256 checksum verified against the official page
+- [ ] ISO SHA256 checksum verified against the official page (skipped; done for the Debian ISO)
 - [x] USB stick ready, UEFI boot successful
 - [x] SATA Operation switched to AHCI
-- [ ] 192.168.1.10 free (no ping reply)
-- [ ] Network confirmed as /24
+- [x] 192.168.1.10 free (confirmed in practice: the host has used it without conflict since installation)
+- [x] Network confirmed as /24
 
 ---
 
@@ -245,6 +245,8 @@ Possible upgrade: an identical module (DDR4 2666) in one of the 3 free slots.
 - [x] Confirm devices in IOMMU groups 0, 9 and 10 with `lspci`
 - [x] Add the ISP router (192.168.1.254) as the host's secondary DNS
 - [x] Documentation versioned in a Git repository
+- [x] Headless setup: AC Recovery, Keyboard Errors, UEFI boot order
+- [ ] Test AC Recovery: unplug power, plug it back, check that pve1 restarts on its own
 - [ ] Test iGPU passthrough
 - [x] Download the Debian 13.7.0 netinst ISO to `local`, with SHA-256 verification
 - [ ] Create the prod VM (ADR-012), install Debian and Docker
